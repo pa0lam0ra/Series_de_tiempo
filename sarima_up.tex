@@ -1,0 +1,468 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{babel}
+\babelprovide[import]{spanish}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath, amssymb}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+
+\geometry{a4paper, left=2.4cm, right=2.4cm, top=2.8cm, bottom=2.8cm, headheight=15pt}
+
+\definecolor{navy}{HTML}{1a3a5c}
+\definecolor{rojo}{HTML}{c8392b}
+\definecolor{verde}{HTML}{27ae60}
+\definecolor{grisclaro}{HTML}{f4f6f8}
+\definecolor{azulclaro}{HTML}{2980b9}
+\definecolor{codebg}{HTML}{1e2736}
+\definecolor{codefg}{HTML}{e8eaf0}
+\definecolor{codekw}{HTML}{56b6c2}
+\definecolor{codestr}{HTML}{98c379}
+\definecolor{codecom}{HTML}{7f848e}
+\definecolor{linenum}{HTML}{4b5263}
+
+\hypersetup{colorlinks=true, linkcolor=navy, urlcolor=azulclaro, citecolor=rojo,
+  pdftitle={SARIMA -- Tres Ejemplos con Datos Financieros},
+  pdfauthor={Dr. Cesar Galindo -- Universidad Panamericana}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{navy}\textbf{Series de Tiempo para Finanzas}}
+\fancyhead[R]{\small\color{navy}Universidad Panamericana $\cdot$ Verano 2026}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{navy}\leaders\hrule height \headrulewidth\hfill}}
+
+\titleformat{\section}{\large\bfseries\color{navy}}{\thesection.}{0.6em}{}
+  [\vspace{-4pt}\textcolor{navy}{\titlerule[1pt]}\vspace{4pt}]
+\titleformat{\subsection}{\normalsize\bfseries\color{rojo}}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{azulclaro}}{\thesubsubsection.}{0.5em}{}
+
+\lstdefinestyle{python}{
+  language=Python,
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\scriptsize\color{codefg},
+  keywordstyle=\bfseries\color{codekw},
+  stringstyle=\color{codestr},
+  commentstyle=\itshape\color{codecom},
+  numberstyle=\tiny\color{linenum},
+  numbers=left, numbersep=8pt, stepnumber=5,
+  breaklines=true, breakatwhitespace=true,
+  showstringspaces=false, tabsize=4,
+  frame=single, framerule=0pt, rulecolor=\color{codebg},
+  xleftmargin=2em, framexleftmargin=1.8em, captionpos=b,
+}
+
+\tcbset{
+  teorema/.style={enhanced, breakable, colback=grisclaro, colframe=navy,
+    fonttitle=\bfseries\color{white}, coltitle=white,
+    attach boxed title to top left={yshift=-2mm, xshift=4mm},
+    boxed title style={colback=navy}, top=6pt, bottom=6pt, left=6pt, right=6pt},
+  formula/.style={enhanced, colback=navy!8, colframe=navy!60,
+    fonttitle=\bfseries\small, top=6pt, bottom=6pt, left=8pt, right=8pt, arc=3pt},
+  aplicacion/.style={enhanced, colback=verde!6, colframe=verde!50,
+    fonttitle=\bfseries\small\color{verde!60!black},
+    top=5pt, bottom=5pt, left=6pt, right=6pt, arc=3pt},
+  nota/.style={enhanced, colback=rojo!5, colframe=rojo!40,
+    top=4pt, bottom=4pt, left=6pt, right=6pt, arc=3pt, fontupper=\small},
+}
+
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\Cov}{Cov}
+\newcommand{\WN}{\mathrm{WN}}
+\newcommand{\AIC}{\mathrm{AIC}}
+\newcommand{\BIC}{\mathrm{BIC}}
+
+\begin{document}
+
+%% ── PORTADA ─────────────────────────────────────────────────────────────────
+\begin{titlepage}
+\centering\vspace*{1.5cm}
+{\Large\bfseries\color{navy} UNIVERSIDAD PANAMERICANA\par}
+\vspace{0.2cm}{\normalsize Facultad de Ciencias Empresariales\par}
+\vspace{1.2cm}\textcolor{navy}{\rule{\linewidth}{2pt}}\vspace{0.4cm}
+{\Huge\bfseries\color{navy} Modelos \textcolor{rojo}{SARIMA}\par
+  con Datos Financieros\par}
+\vspace{0.3cm}{\large Forma General, Interpretaci\'on y Tres Ejemplos en Python\par}
+\vspace{0.4cm}\textcolor{navy}{\rule{\linewidth}{2pt}}\vspace{1.2cm}
+\begin{tcolorbox}[formula, width=0.94\linewidth]
+\centering\textbf{Ecuaci\'on General SARIMA$(p,d,q)(P,D,Q)_s$}\\[8pt]
+\large
+$\underbrace{\Phi_P(B^s)}_{\text{AR estac.}}
+ \underbrace{\varphi_p(B)}_{\text{AR ord.}}
+ \underbrace{(1-B^s)^D}_{\Delta_s^D}
+ \underbrace{(1-B)^d}_{\Delta^d}
+ Y_t
+ \;=\;
+ \underbrace{\Theta_Q(B^s)}_{\text{MA estac.}}
+ \underbrace{\theta_q(B)}_{\text{MA ord.}}
+ \underbrace{\varepsilon_t}_{\WN(0,\sigma^2)}$
+\end{tcolorbox}
+\vspace{1.5cm}
+\begin{tabular}{rl}
+  \textbf{Materia:}   & Series de Tiempo para Finanzas \\[4pt]
+  \textbf{Profesor:}  & Dr.\ C\'esar Galindo \\[4pt]
+  \textbf{Per\'iodo:} & Verano 2026 \\[4pt]
+  \textbf{Fecha:}     & \today \\
+\end{tabular}
+\vfill
+{\small\color{gray}
+ Datos: \texttt{statsmodels} (T-Bills, CO$_2$ Mauna Loa, PIB Real EE.UU.) $\cdot$
+ C\'odigo: Python~3 / \texttt{statsmodels.tsa.statespace.SARIMAX}}
+\end{titlepage}
+
+\tableofcontents\newpage
+
+%% ── SECCION 1: FORMA GENERAL ─────────────────────────────────────────────────
+\section{Forma General del Modelo SARIMA$(p,d,q)(P,D,Q)_s$}
+
+\subsection{Ecuaci\'on completa}
+
+El modelo SARIMA combina una parte no estacional ARIMA$(p,d,q)$ con una parte
+estacional ARIMA$(P,D,Q)_s$:
+
+\begin{tcolorbox}[formula, title={Ecuaci\'on General}]
+\begin{equation}
+  \Phi_P(B^s)\;\varphi_p(B)\;(1-B^s)^D\;(1-B)^d\;Y_t
+  \;=\;
+  \Theta_Q(B^s)\;\theta_q(B)\;\varepsilon_t,
+  \quad\varepsilon_t\sim\WN(0,\sigma^2)
+  \label{eq:sarima}
+\end{equation}
+con los operadores:
+\begin{align*}
+  \varphi_p(B)  &= 1-\varphi_1 B-\cdots-\varphi_p B^p
+  &&\text{(AR ordinario)}\\
+  \theta_q(B)   &= 1+\theta_1 B+\cdots+\theta_q B^q
+  &&\text{(MA ordinario)}\\
+  \Phi_P(B^s)   &= 1-\Phi_1 B^s-\cdots-\Phi_P B^{Ps}
+  &&\text{(AR estacional)}\\
+  \Theta_Q(B^s) &= 1+\Theta_1 B^s+\cdots+\Theta_Q B^{Qs}
+  &&\text{(MA estacional)}
+\end{align*}
+\end{tcolorbox}
+
+\subsection{Los siete par\'ametros}
+
+\begin{table}[H]
+\centering
+\caption{Par\'ametros del modelo SARIMA$(p,d,q)(P,D,Q)_s$}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{>{\bfseries\color{rojo}\centering\arraybackslash}m{1cm}
+                >{\centering\arraybackslash}m{2.3cm}m{5.5cm}m{4cm}}
+\toprule
+\rowcolor{navy!12}
+\color{navy}Par\'am. & \color{navy}Tipo &
+\color{navy}Descripci\'on & \color{navy}Identificaci\'on\\
+\midrule
+$p$ & AR ordinario   & Rezagos de $Y_t$ en la ecuaci\'on & PACF corte en lag $p$ \\
+$d$ & Integ.\ ord.   & Diferencias $(1-B)^d$ & Prueba ADF / KPSS \\
+$q$ & MA ordinario   & Errores pasados $\varepsilon_{t-k}$ & ACF corte en lag $q$ \\
+\midrule
+\rowcolor{grisclaro}
+$P$ & AR estacional  & Rezagos $Y_{t-ks}$, $k=1,\ldots,P$ & PACF pico en $s,2s,\ldots$ \\
+\rowcolor{grisclaro}
+$D$ & Integ.\ estac. & Diferencias $(1-B^s)^D$ & Gr\'afica / prueba CH \\
+\rowcolor{grisclaro}
+$Q$ & MA estacional  & Errores en m\'ultiplos de $s$ & ACF pico en $s,2s,\ldots$ \\
+\midrule
+$s$ & Per\'iodo & Longitud ciclo (12, 4, 52\ldots) & Inspecci\'on visual \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Reglas de identificaci\'on ACF/PACF}
+
+\begin{table}[H]
+\centering
+\caption{Patrones para identificar el orden del modelo}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lll}
+\toprule
+\rowcolor{navy!12}
+\color{navy}\textbf{Proceso} & \color{navy}\textbf{ACF} & \color{navy}\textbf{PACF}\\
+\midrule
+AR$(p)$     & Decae geom\'etricamente & Se corta en rezago $p$ \\
+MA$(q)$     & Se corta en rezago $q$ & Decae geom\'etricamente \\
+ARMA$(p,q)$ & Decae (mezcla) & Decae (mezcla) \\
+\rowcolor{grisclaro}
+SAR$(P)_s$  & Picos en $s,2s,\ldots$ decaen & Pico significativo en $s$ \\
+\rowcolor{grisclaro}
+SMA$(Q)_s$  & Pico significativo en $s$ & Picos en $s,2s,\ldots$ decaen \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Criterios de selecci\'on y diagn\'ostico}
+
+\begin{tcolorbox}[nota]
+$\AIC = -2\hat\ell + 2k$ \quad $\BIC = -2\hat\ell + k\ln n$ \quad
+Minimizar ambos. Con $n>100$ usar \textbf{BIC}. Parsimonia: $p+d+q+P+D+Q\le 6$.
+\end{tcolorbox}
+
+\begin{tcolorbox}[nota]
+\textbf{Ljung-Box:}
+$Q_{LB} = n(n+2)\sum_{k=1}^{h}\hat\rho_k^2/(n-k)\sim\chi^2(h-p-q)$ bajo $H_0$.
+Si $p\text{-valor}>0.05 \Rightarrow$ residuos son ruido blanco \checkmark.
+\end{tcolorbox}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{ej0_forma_general_sarima.png}
+\caption{Forma general SARIMA y tabla de interpretaci\'on de par\'ametros.}
+\end{figure}
+
+\newpage
+
+%% ── SECCION 2: EJEMPLO 1 ─────────────────────────────────────────────────────
+\section{Ejemplo 1 --- Tasa de Inter\'es Trimestral (proxy CETES/T-Bills)}
+
+\begin{tcolorbox}[teorema, title={Modelo: SARIMA$(1,1,0)(1,0,0)_4$}]
+\textbf{Serie:} Tasa T-Bill trimestral EE.UU.\ 1959--2009 (203 obs.), proxy CETES.\\[4pt]
+\textbf{Ecuaci\'on ajustada:}
+\[
+  (1-\hat\varphi_1 B)(1-\hat\Phi_1 B^4)(1-B)\,Y_t = \varepsilon_t
+\]
+\end{tcolorbox}
+
+\subsection{Descripci\'on y prueba de ra\'iz unitaria}
+
+Media $5.31\%$, desviaci\'on est\'andar $2.80\%$.
+ADF: estad\'istico $-2.04$, $p=0.270 \Rightarrow$ I(1), $d=1$.
+PACF de $\Delta Y_t$ corte en lag~1 ($p=1$), pico estacional en lag~4 ($P=1$).
+
+\subsection{Resultados de estimaci\'on}
+
+\begin{table}[H]\centering
+\caption{Estimaci\'on SARIMA$(1,1,0)(1,0,0)_4$ --- Tasa T-Bill}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lrrrr}
+\toprule
+\rowcolor{navy!12}\color{navy}Par\'ametro &
+\color{navy}Estimado & \color{navy}Err.\ est. &
+\color{navy}$z$ & \color{navy}$p$-valor\\
+\midrule
+Intercepto     & $-0.013$ & $0.070$ & $-0.18$ & $0.859$\\
+$\hat\varphi_1$& $\phantom{-}0.052$ & $0.032$ & $\phantom{-}1.64$ & $0.101$\\
+$\hat\Phi_1$   & $-0.045$ & $0.047$ & $-0.96$ & $0.340$\\
+$\hat\sigma^2$ & $\phantom{-}0.761$ & $0.029$ & $25.83$ & $<0.001$\\
+\midrule
+\multicolumn{2}{l}{$\AIC=513.34$} & \multicolumn{3}{l}{$\BIC=526.47$}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{tcolorbox}[aplicacion, title={Aplicaci\'on: Valuaci\'on de Bonos / CETES}]
+El pron\'ostico de tasas a 8 trimestres permite calcular el valor presente de
+bonos de tasa fija, decidir coberturas fija/variable (swaps) y estimar duraci\'on modificada.
+\end{tcolorbox}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{ej1_tasa_sarima.png}
+\caption{SARIMA$(1,1,0)(1,0,0)_4$ --- Serie original, ACF/PACF de $\Delta Y_t$,
+         residuos y pron\'ostico 8 trimestres con IC~95\%.}
+\end{figure}
+
+\newpage
+
+%% ── SECCION 3: EJEMPLO 2 ─────────────────────────────────────────────────────
+\section{Ejemplo 2 --- CO\textsubscript{2} Mensual: Modelo de Aerolineas (Airline)}
+
+\begin{tcolorbox}[teorema, title={Modelo: SARIMA$(0,1,1)(0,1,1)_{12}$ --- Airline de Box-Jenkins}]
+\textbf{Serie:} CO$_2$ mensual Mauna Loa 1958--2001 (526 obs.),
+$W_t=\ln Y_t$ para estabilizar varianza.\\[4pt]
+\textbf{Ecuaci\'on:}
+$(1-B)(1-B^{12})\,W_t = (1+\hat\theta_1 B)(1+\hat\Theta_1 B^{12})\,\varepsilon_t$
+\end{tcolorbox}
+
+\subsection{Expansi\'on del operador (Ejercicio 3.2 de la tarea)}
+
+\begin{align}
+  (1-B)(1-B^{12})\,W_t &= W_t - W_{t-1} - W_{t-12} + W_{t-13}\label{eq:lhs}\\
+  (1+\theta_1 B)(1+\Theta_1 B^{12})\,\varepsilon_t
+  &= \varepsilon_t + \theta_1\varepsilon_{t-1}
+     + \Theta_1\varepsilon_{t-12} + \theta_1\Theta_1\varepsilon_{t-13}\label{eq:rhs}
+\end{align}
+
+\subsection{Resultados}
+
+\begin{table}[H]\centering
+\caption{Estimaci\'on SARIMA$(0,1,1)(0,1,1)_{12}$ --- CO$_2$}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lrrrr}
+\toprule
+\rowcolor{navy!12}\color{navy}Par\'ametro &
+\color{navy}Estimado & \color{navy}Err.\ est. &
+\color{navy}$z$ & \color{navy}$p$-valor\\
+\midrule
+$\hat\theta_1$ (MA L1)   & $-0.3418$ & $0.038$ & $-8.93$ & $<0.001$\\
+$\hat\Theta_1$ (SMA L12) & $-0.6798$ & $0.041$ & $-16.45$ & $<0.001$\\
+$\hat\sigma^2$ & $8.29\!\times\!10^{-7}$ & --- & $15.41$ & $<0.001$\\
+\midrule
+\multicolumn{2}{l}{$\AIC=-5562.55$} & \multicolumn{3}{l}{$\BIC=-5549.91$ \quad\textbf{Ganador}}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{tcolorbox}[aplicacion, title={Aplicaci\'on: Commodities Energ\'eticos}]
+Est\'andar en gas natural (ciclo invernal), electricidad, demanda de energ\'ia.
+Permite construir \emph{hedge ratios} estacionales y fijar precios de futuros.
+\end{tcolorbox}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{ej2_co2_airline.png}
+\caption{SARIMA$(0,1,1)(0,1,1)_{12}$ --- Transformaci\'on log, $\Delta_1\Delta_{12}$,
+         ACF estacional, Q-Q de residuos y pron\'ostico 24 meses.}
+\end{figure}
+
+\newpage
+
+%% ── SECCION 4: EJEMPLO 3 ─────────────────────────────────────────────────────
+\section{Ejemplo 3 --- PIB Real Trimestral: Selecci\'on Autom\'atica Box-Jenkins}
+
+\begin{tcolorbox}[teorema, title={Modelo ganador por BIC: SARIMA$(1,1,1)(1,0,0)_4$}]
+\textbf{Serie:} PIB real EE.UU.\ trimestral 1959--2009 (203 obs., en log).
+Crecimiento promedio: $3.14\%$ anual.\\[4pt]
+\textbf{Ecuaci\'on ajustada:}
+\[
+  (1-0.923\,B)(1-0.018\,B^4)(1-B)\,\ln(\text{PIB})_t
+  = (1-0.567\,B)\,\varepsilon_t,\quad\hat\sigma=0.00843
+\]
+\end{tcolorbox}
+
+\subsection{Metodolog\'ia Box-Jenkins}
+
+\subsubsection{Identificaci\'on}
+ADF: $p=0.999 \Rightarrow$ I(1), $d=1$. ACF de $\Delta\ln\text{PIB}$ decae; PACF corte en lag~1.
+\subsubsection{Estimaci\'on en grilla}
+
+\begin{table}[H]\centering
+\caption{Top~5 modelos por BIC --- PIB trimestral}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lrrr}
+\toprule
+\rowcolor{navy!12}\color{navy}Modelo &
+\color{navy}AIC & \color{navy}BIC & \color{navy}Params.\\
+\midrule
+\rowcolor{verde!10}SARIMA$(1,1,1)(0,0,0)_4$ & $-1331.5$ & $-1321.6$ & 3\\
+SARIMA$(2,1,0)(0,0,0)_4$ & $-1325.3$ & $-1315.4$ & 3\\
+SARIMA$(1,1,2)(0,0,0)_4$ & $-1328.0$ & $-1314.8$ & 4\\
+SARIMA$(2,1,1)(0,0,0)_4$ & $-1327.2$ & $-1314.0$ & 4\\
+SARIMA$(2,1,2)(0,0,0)_4$ & $-1319.9$ & $-1303.5$ & 5\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{ECM del pron\'ostico (fan chart)}
+
+\[
+  \mathrm{ECM}_h = \sigma^2\sum_{j=0}^{h-1}\psi_j^2,
+  \quad \psi_0=1,\quad \psi_j=\varphi_1\psi_{j-1}+\varphi_2\psi_{j-2}+\cdots
+\]
+
+El fan chart se expande porque $\mathrm{ECM}_h$ crece mon\'otonamente con $h$.
+
+\begin{table}[H]\centering
+\caption{Pron\'ostico PIB real (miles de MM USD)}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{crrr}
+\toprule
+\rowcolor{navy!12}\color{navy}Trimestre &
+\color{navy}Pron\'ostico & \color{navy}LI 95\% & \color{navy}LS 95\%\\
+\midrule
+2009-Q4 & $12{,}976.6$ & $12{,}763.9$ & $13{,}192.8$\\
+2010-Q1 & $12{,}962.9$ & $12{,}607.0$ & $13{,}329.0$\\
+2010-Q2 & $12{,}953.6$ & $12{,}453.4$ & $13{,}473.9$\\
+2010-Q3 & $12{,}947.0$ & $12{,}299.6$ & $13{,}628.5$\\
+2010-Q4 & $12{,}939.2$ & $12{,}140.3$ & $13{,}790.6$\\
+2011-Q1 & $12{,}931.9$ & $11{,}980.3$ & $13{,}959.2$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{tcolorbox}[aplicacion, title={Aplicaci\'on: Riesgo Crediticio y Ciclos de Negocios}]
+Calibrar modelos de riesgo crediticio (PD, LGD) bajo escenarios macro;
+asignaci\'on t\'actica de activos; valuaci\'on de empresas c\'iclicas.
+\end{tcolorbox}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{ej3_pib_boxjenkins.png}
+\caption{SARIMA$(1,1,1)(1,0,0)_4$ --- Crecimiento trimestral, comparaci\'on por BIC,
+         ACF/PACF y fan chart IC 68\%--95\% a 12 trimestres.}
+\end{figure}
+
+\newpage
+
+%% ── SECCION 5: RESUMEN ───────────────────────────────────────────────────────
+\section{Resumen: Gu\'ia R\'apida para el Examen}
+
+\begin{tcolorbox}[formula, title={Checklist Box-Jenkins}]
+\begin{enumerate}[noitemsep]
+  \item \textbf{Graficar} la serie. \textquestiondown Tendencia? \textquestiondown Estacionalidad?
+  \item \textbf{ADF/KPSS:} $p>0.05 \Rightarrow d=1$; picos ACF en $ks \Rightarrow D=1$.
+  \item \textbf{ACF/PACF} diferenciada: PACF corte $\to p$; ACF corte $\to q$; picos en $s,2s\ldots \to P,Q$.
+  \item \textbf{Estimar} candidatos $\to$ calcular AIC/BIC $\to$ elegir menor BIC.
+  \item \textbf{Ljung-Box:} $p>0.05 \Rightarrow$ modelo OK \checkmark.
+  \item \textbf{Pron\'ostico} con intervalos que crecen con $h$.
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{table}[H]\centering
+\caption{Resumen de los tres ejemplos}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{llllll}
+\toprule
+\rowcolor{navy!12}
+\color{navy} & \color{navy}Serie & \color{navy}Modelo &
+\color{navy}AIC & \color{navy}BIC & \color{navy}Aplicaci\'on\\
+\midrule
+\textbf{Ej.1} & Tasa T-Bill trim.   & SARIMA$(1,1,0)(1,0,0)_4$    & $513.3$   & $526.5$   & Bonos/CETES\\
+\textbf{Ej.2} & CO$_2$ mensual      & SARIMA$(0,1,1)(0,1,1)_{12}$ & $-5562.6$ & $-5549.9$ & Commodities\\
+\textbf{Ej.3} & PIB real trim.      & SARIMA$(1,1,1)(1,0,0)_4$    & $-1314.1$ & $-1301.0$ & Riesgo cred.\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\newpage
+
+%% ── SECCION 6: CODIGO ────────────────────────────────────────────────────────
+\section{C\'odigo Python Completo}
+
+\begin{tcolorbox}[nota]
+\textbf{Dependencias:} \texttt{numpy}, \texttt{pandas}, \texttt{matplotlib},
+\texttt{statsmodels}, \texttt{scipy}. Sin necesidad de conexi\'on a internet.
+Ejecutar: \texttt{python3 sarima\_clean.py}
+\end{tcolorbox}
+
+\lstinputlisting[
+  style=python,
+  caption={C\'odigo completo: tres ejemplos SARIMA con datos financieros},
+  label={lst:sarima},
+]{sarima_clean.py}
+
+%% ── REFERENCIAS ──────────────────────────────────────────────────────────────
+\newpage
+\section*{Referencias}
+\addcontentsline{toc}{section}{Referencias}
+\begin{enumerate}[label={[\arabic*]}]
+  \item Box, G.E.P.\ y Jenkins, G.M.\ (1976). \textit{Time Series Analysis}. Holden-Day.
+  \item Hamilton, J.D.\ (1994). \textit{Time Series Analysis}. Princeton University Press.
+  \item Shumway, R.H.\ y Stoffer, D.S.\ (2017). \textit{Time Series Analysis and Its Applications}. Springer.
+  \item Hyndman, R.J.\ y Athanasopoulos, G.\ (2021). \textit{Forecasting: Principles and Practice}. \url{https://otexts.com/fpp3/}
+  \item Statsmodels Team (2024). \url{https://www.statsmodels.org}
+\end{enumerate}
+
+\end{document}
